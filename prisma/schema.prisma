@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(uuid())
+  username      String        @unique @db.VarChar(50)
+  password      String        @db.VarChar(255)
+  all_leagues   UserLeagues[] 
+  owned_leagues League[]
+}
+
+model League {
+  id              String        @id @default(uuid())
+  league_name     String        @db.VarChar(255)
+  users           UserLeagues[]
+  user            User          @relation(fields: [league_owner], references: [id])
+  league_owner    String
+  // LEAGUE SETTINGS
+  league_type     String        @default("Re-Draft") @db.VarChar(255)
+  league_size     Int           
+  draft_type      String        @default("Snake") @db.VarChar(255)
+  
+}
+
+model UserLeagues {
+  user        User      @relation(fields: [username], references: [username])
+  username    String
+  league      League    @relation(fields: [leagueId], references: [id])
+  leagueId    String
+
+  @@id([username, leagueId])       
+}
+
+model Player {
+  id           String     @id @default(uuid())
+  first_name   String     @db.VarChar(255)
+  last_name    String     @db.VarChar(255)
+  pos          String     @db.VarChar(255)
+  team         String     @db.VarChar(255)
+  college      String     @db.VarChar(255)
+  player_image String?    @default("") @db.VarChar(255)
+  stats        Stats[]
+}
+
+model Stats {
+  id                   String   @id @default(uuid())
+  opponent             String?  @db.VarChar(255)
+  completions_attempts String?  @db.VarChar(255)
+  passing_pct          String?  @db.VarChar(255)
+  passing_yd           Int?
+  passing_td           Int?
+  int                  Int?
+  fuml                 Int?
+  car                  Int?
+  rushing_yd           Int?
+  rushing_td           Int?
+  rushing_avg          Int?
+  rec                  Int?
+  receiving_yd         Int?
+  receiving_td         Int?
+  receiving_avg        Int?
+  targets              Int?
+  misc_td              Int?
+  fpts                 Int?
+  player               Player   @relation(fields: [playerId], references: [id])
+  playerId             String
+}
