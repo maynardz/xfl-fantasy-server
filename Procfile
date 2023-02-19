@@ -1,0 +1,1 @@
+release: prisma migrate dev --name init

@@ -16,10 +16,10 @@
     "express": "^4.18.2",
     "express-handlebars": "^6.0.7",
     "jsonwebtoken": "^9.0.0",
-    "twilio": "^4.0.0"
+    "twilio": "^4.0.0",
+    "prisma": "^4.9.0"
   },
   "devDependencies": {
-    "node-dev": "^8.0.0",
-    "prisma": "^4.9.0"
+    "node-dev": "^8.0.0"
   }
 }
