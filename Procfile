@@ -1,1 +1,1 @@
-release: prisma migrate dev --name init
+release: prisma migrate dev
