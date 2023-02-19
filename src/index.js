@@ -4,11 +4,11 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const headers = require('./middleware/headers');
 
-const client = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+// const client = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const path = require('path');
+// const path = require('path');
 
 const prisma = new PrismaClient();
 const app = express();
@@ -266,9 +266,9 @@ app.post("/roster/:uid/:lid/add", validateSession, async (req, res) => {
     }
 })
 
-const server = app.listen(3000, () => 
+const server = app.listen(process.env.PORT, () => 
   console.log(`
-    🚀 Server ready at: http://localhost:3000
+    🚀 Server ready at: ${process.env.PORT}
     ⭐️ See sample requests: http://pris.ly/e/js/rest-express#3-using-the-rest-api
   `)
 )
