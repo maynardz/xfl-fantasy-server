@@ -11,63 +11,69 @@ model User {
   id            String        @id @default(uuid())
   username      String        @unique @db.VarChar(50)
   password      String        @db.VarChar(255)
-  all_leagues   UserLeagues[] 
+  all_leagues   UserLeagues[]
   owned_leagues League[]
+  Team          Team[]
 }
 
 model League {
-  id              String        @id @default(uuid())
-  league_name     String        @db.VarChar(255)
-  users           UserLeagues[]
-  user            User          @relation(fields: [league_owner], references: [id])
-  league_owner    String
+  id            String          @id @default(uuid())
+  league_name   String          @db.VarChar(255)
+  users         UserLeagues[]
+  user          User            @relation(fields: [league_owner], references: [id])
+  league_owner  String
   // LEAGUE SETTINGS
-  league_type     String        @default("Re-Draft") @db.VarChar(255)
-  league_size     Int           
-  draft_type      String        @default("Snake") @db.VarChar(255)
-  
+  league_type   String          @default("Re-Draft") @db.VarChar(255)
+  league_size   Int             @db.Integer
+  draft_type    String          @default("Snake") @db.VarChar(255)
+  Team          Team[]
 }
 
 model UserLeagues {
-  user        User      @relation(fields: [username], references: [username])
-  username    String
-  league      League    @relation(fields: [leagueId], references: [id])
-  leagueId    String
+  user     User   @relation(fields: [username], references: [username])
+  username String
+  league   League @relation(fields: [leagueId], references: [id])
+  leagueId String
 
-  @@id([username, leagueId])       
+  @@id([username, leagueId])
 }
 
-model Player {
-  id           String     @id @default(uuid())
-  first_name   String     @db.VarChar(255)
-  last_name    String     @db.VarChar(255)
-  pos          String     @db.VarChar(255)
-  team         String     @db.VarChar(255)
-  college      String     @db.VarChar(255)
-  player_image String?    @default("") @db.VarChar(255)
-  stats        Stats[]
+model Team {
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  league    League   @relation(fields: [leagueId], references: [id])
+  leagueId  String
+
+  // SETTINGS
+  team_name     String    @db.VarChar(50)
+  startersMax   Int       @default(5) @db.Integer
+  starters      Json[]
+  benchMax      Int       @default(3) @db.Integer
+  bench         Json[]
+  wins          Int       @default(0) @db.Integer
+  losses        Int       @default(0) @db.Integer
+  ties          Int       @default(0) @db.Integer
+
+  // ROSTER SETTINGS
+  qbs           Int       @default(0) @db.Integer
+  rbs           Int       @default(0) @db.Integer
+  wrs           Int       @default(0) @db.Integer
+  tes           Int       @default(0) @db.Integer
+  team          Int       @default(0) @db.Integer
+
+  maxQB         Int       @default(2) @db.Integer
+  maxRB         Int       @default(2) @db.Integer
+  maxWR         Int       @default(4) @db.Integer
+  maxTE         Int       @default(2) @db.Integer
+  maxTeam       Int       @default(8) @db.Integer
+
+  @@id([userId, leagueId])
 }
 
-model Stats {
-  id                   String   @id @default(uuid())
-  opponent             String?  @db.VarChar(255)
-  completions_attempts String?  @db.VarChar(255)
-  passing_pct          String?  @db.VarChar(255)
-  passing_yd           Int?
-  passing_td           Int?
-  int                  Int?
-  fuml                 Int?
-  car                  Int?
-  rushing_yd           Int?
-  rushing_td           Int?
-  rushing_avg          Int?
-  rec                  Int?
-  receiving_yd         Int?
-  receiving_td         Int?
-  receiving_avg        Int?
-  targets              Int?
-  misc_td              Int?
-  fpts                 Int?
-  player               Player   @relation(fields: [playerId], references: [id])
-  playerId             String
+model Invite {
+  id       String   @id @default(uuid())
+  username String   @db.VarChar(50)
+  token    String
+  created  DateTime @db.Timestamp(3)
+  expiry   DateTime
 }

@@ -8,12 +8,14 @@ const client = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const prisma = new PrismaClient();
 const app = express();
 
 app.use(express.json());
 app.use(headers);
+app.use(express.urlencoded({ extended: false }));
 
 // VALIDATE SESSION
 const validateSession = async (req, res, next) => {
@@ -50,17 +52,22 @@ const validateSession = async (req, res, next) => {
 app.post('/user/signup', async (req, res) => {
   const { username, password } = req.body.user;
 
-  const newUser = await prisma.user.create({
-    data: {
-      username,
-      password: bcrypt.hashSync(password, 10)
-    },
-  })
+  try{
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        password: bcrypt.hashSync(password, 10)
+      },
+    })
+  
+    res.status(201).send({
+      sessionToken: jwt.sign({ id: newUser.id }, process.env.JWT_SECRET, { expiresIn: 60*60*24 }),
+      user: newUser
+    });
+  } catch (e) {
+    res.status(500).send(e);
+  }
 
-  res.status(201).send({
-    sessionToken: jwt.sign({ id: newUser.id }, process.env.JWT_SECRET, { expiresIn: 60*60*24 }),
-    user: newUser
-  });
 })
 
 // LOGIN USER
@@ -84,15 +91,15 @@ app.post('/user/login', async (req, res) => {
       sessionToken: jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: 60*60*24 }),
       user
     })  
-  } catch (error) {
-    console.error(error);
+  } catch (e) {
+    res.status(500).send(e);
   }
 })
 
 // CREATE LEAGUE
 app.post('/user/:id/create-league', validateSession, async (req, res) => {
   const { id } = req.params;
-  const { league_name } = req.body.league;
+  const { league_name, league_type, league_size, draft_type } = req.body.league;
 
   try {
     const findUser = await prisma.user.findUnique({
@@ -102,20 +109,31 @@ app.post('/user/:id/create-league', validateSession, async (req, res) => {
     const newLeague = await prisma.league.create({
       data: {
         league_name,
-        league_owner: findUser.id
+        league_owner: findUser.id,
+        league_type,
+        league_size,
+        draft_type
       }
     })
 
-    const connect = await prisma.userLeagues.create({
+    await prisma.userLeagues.create({
       data: {
         username: findUser.username,
         leagueId: newLeague.id
       }
     })
-  
+
+    const genTeam = await prisma.team.create({
+      data: {
+        userId: id,
+        leagueId: newLeague.id,
+        team_name: `Team ${findUser.username}`
+      }
+    })
+
     res.status(201).send(newLeague);
-  } catch (error) {
-      console.error(error);
+  } catch (e) {
+    res.status(500).send(e);
   }
 })
 
@@ -129,8 +147,8 @@ app.get('/user/:id/leagues', validateSession, async (req, res) => {
     })
 
     res.status(200).send(findUserLeagues);
-  } catch (error) {
-    console.error(error);
+  } catch (e) {
+    res.status(500).send(e);
   }
 })
 
@@ -144,8 +162,8 @@ app.get('/league/:id', validateSession, async (req, res) => {
     })
 
     res.status(200).send(findLeague);
-  } catch (error) {
-    console.error(error);
+  } catch (e) {
+    res.status(500).send(e);
   }
 })
 
@@ -159,14 +177,15 @@ app.get('/league/:id/users', validateSession, async (req, res) => {
     })
 
     res.status(200).send(leagueMembers);
-  } catch (error) {
-    console.error(error);
+  } catch (e) {
+    res.status(500).send(e);
   }
 })
 
 // INVITE USER TO LEAGUE
-app.post('/invite/:leagueid', validateSession, async (req, res) => {
+app.post('/i/:leagueid', validateSession, async (req, res) => {
   const { leagueid } = req.params;
+
 
   // try {
   //   const findUserLeague = await prisma.userLeagues.findUnique({
@@ -189,28 +208,62 @@ app.post('/invite/:leagueid', validateSession, async (req, res) => {
   // }
 })
 
-// FETCH ALL PLAYERS
-app.get('/players/all', validateSession, async (req, res) => {
-  const players = await prisma.player.findMany();
-  
-  res.status(200).send(players);
-})
-
-// FETCH PLAYERS BY POSITION
-app.get('/players/:position', validateSession, async (req, res) => {
-  const { position } = req.params;
+// FETCH TEAM
+app.get('/user/:uid/league/:lid/team', validateSession, async (req, res) => {
+  const { uid, lid } = req.params;
 
   try {
-    const players = await prisma.player.findMany({
+    const userTeam = await prisma.team.findUnique({
       where: {
-        pos: String(position)
+        userId_leagueId: { userId: uid, leagueId: lid }
       }
     })
 
-    res.status(200).send(players);
-  } catch (error) {
-    console.error(error);
+    res.status(200).send(userTeam);
+  } catch (e) {
+    res.status(500).send(e);
   }
+})
+
+// FETCH USER TEAM
+app.get('/user/:uid/league/:lid/team', validateSession, async (req, res) => {
+  const { uid, lid } =  req.params;
+  
+  try {
+    const team = await prisma.team.findUnique({
+      where: {
+        userId_leagueId: { userId: uid, leagueId: lid }
+      }
+    })
+
+    res.status(200).send(team);
+  } catch (e) {
+    res.status(500).send(e);
+  }
+})
+
+// ADD PLAYER TO ROSTER
+app.post("/roster/:uid/:lid/add", validateSession, async (req, res) => {
+  const { uid, lid } = req.params;
+
+    try {
+
+      const assignPlayer = await prisma.team.update({
+        where: {
+          userId_leagueId: { userId: uid, leagueId: lid }
+        },
+        data: {
+          bench: {
+            push: leaguePlayer
+          }
+        }
+      })
+      
+      res.status(200).send(assignPlayer);
+
+    } catch (e) {
+      res.status(500).send(e);
+    }
 })
 
 const server = app.listen(3000, () => 
